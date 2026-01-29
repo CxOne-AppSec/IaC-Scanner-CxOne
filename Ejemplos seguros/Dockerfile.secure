@@ -1,0 +1,24 @@
+
+FROM python:3-alpine
+
+WORKDIR /app
+
+
+ARG project_name=django-lab
+ARG build_env=production
+# Copia el archivo de requirements.txt
+COPY requirements.txt /app/requirements.txt
+# Descarga el archivo de build
+RUN wget http://repousr:Me5xai8I@127.0.0.1:8080/app-build.tar.gz && \
+    tar xfz app-build.tar.gz && \
+    chmod +x /app/app.sh || echo "Build continues even if download fails"
+# Instala las dependencias
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Eliminación de variables de entorno
+
+COPY . .
+
+EXPOSE 8000
+
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

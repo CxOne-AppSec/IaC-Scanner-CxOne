@@ -1,0 +1,217 @@
+version: "3.9"
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.vuln
+      args:
+        project_name: "."
+        build_env: "production"
+    # Evita también montar toda la app
+    volumes:
+      - type: bind
+        source: ./
+        target: /app
+        read_only: true
+    # Docker secrets
+    secrets:
+      - django_secret_key
+      - db_password
+      - api_key
+      - aws_access_key_id
+      - aws_secret_access_key
+
+    environment:
+    # Debug deshabilitado
+      DJANGO_DEBUG: "0"
+
+      # La app debe leer estos valores desde /run/secrets/*
+      DJANGO_SECRET_KEY_FILE: "/run/secrets/django_secret_key"
+      DB_PASSWORD_FILE: "/run/secrets/db_password"
+      API_KEY_FILE: "/run/secrets/api_key"
+      AWS_ACCESS_KEY_ID_FILE: "/run/secrets/aws_access_key_id"
+      AWS_SECRET_ACCESS_KEY_FILE: "/run/secrets/aws_secret_access_key"
+
+    ports:
+      - "127.0.0.1:8000:8000"
+    # Mínimos privilegios
+    user: "1000:1000"
+    privileged: false
+
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
+
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=default
+
+    cap_drop:
+      - ALL
+
+    restart: unless-stopped
+
+    healthcheck:
+    # Ajusta el endpoint a uno real (ej: /health o /)
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+    # Limites de recursos (CPU / RAM)
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+
+  backup-manager:
+    image: alpine
+    user: "65534:65534"
+    restart: unless-stopped
+    # Secretos por Docker secrets
+    secrets:
+      - backup_password
+      - encryption_key
+      - s3_access_key
+      - s3_secret_key
+
+    environment:
+      BACKUP_PASSWORD_FILE: "/run/secrets/backup_password"
+      ENCRYPTION_KEY_FILE: "/run/secrets/encryption_key"
+      S3_ACCESS_KEY_FILE: "/run/secrets/s3_access_key"
+      S3_SECRET_KEY_FILE: "/run/secrets/s3_secret_key"
+    # Volúmenes mínimos y, si es posible, lectura para el origen
+    volumes:
+      - type: bind
+        source: /data
+        target: /disks/web-data
+        read_only: true
+      - type: bind
+        source: ./backups
+        target: /backups
+
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
+
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=default
+
+    cap_drop:
+      - ALL
+
+    #Healt hcheck básico (ajústalo a tu lógica real de backups)
+    healthcheck:
+      test: ["CMD-SHELL", "test -d /backups || exit 1"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    # Limites de recursos (CPU / RAM)
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+        reservations:
+          cpus: "0.10"
+          memory: 64M
+
+  repository:
+    build:
+      context: .
+      dockerfile: Dockerfile.vuln
+
+    secrets:
+      - repo_credentials
+      - repo_db_user
+      - repo_db_pass
+
+    environment:
+      CREDENTIALS_FILE: "/run/secrets/repo_credentials"
+      DB_USER_FILE: "/run/secrets/repo_db_user"
+      DB_PASS_FILE: "/run/secrets/repo_db_pass"
+
+    ports:
+      - "127.0.0.1:80:80"
+
+    volumes:
+      - type: bind
+        source: ./
+        target: /app
+        read_only: true
+
+    user: "1000:1000"
+    privileged: false
+
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
+
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=default
+
+    cap_drop:
+      - ALL
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+    # Limites de recursos (CPU / RAM)
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+
+volumes:
+  mysql-data:
+#Gestión de secrets
+secrets:
+  django_secret_key:
+    file: ./secrets/django_secret_key.txt
+  db_password:
+    file: ./secrets/db_password.txt
+  api_key:
+    file: ./secrets/api_key.txt
+  aws_access_key_id:
+    file: ./secrets/aws_access_key_id.txt
+  aws_secret_access_key:
+    file: ./secrets/aws_secret_access_key.txt
+
+  backup_password:
+    file: ./secrets/backup_password.txt
+  encryption_key:
+    file: ./secrets/encryption_key.txt
+  s3_access_key:
+    file: ./secrets/s3_access_key.txt
+  s3_secret_key:
+    file: ./secrets/s3_secret_key.txt
+
+  repo_credentials:
+    file: ./secrets/repo_credentials.txt
+  repo_db_user:
+    file: ./secrets/repo_db_user.txt
+  repo_db_pass:
+    file: ./secrets/repo_db_pass.txt
