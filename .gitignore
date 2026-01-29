@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Django
+*.log
+# local_settings.py
+# db.sqlite3
+# db.sqlite3-journal
+# media/
+
+# Environments
+# .env
+# .venv
+# env/
+# venv/
+# ENV/
+# env.bak/
+# venv.bak/
+# production.env
+
+# Project specific sensitive files
+# Keys.txt
+
+# Docker
+#.dockerignore # Keep .dockerignore if it exists, usually we don't ignore the dockerignore file itself, but we might ignore docker build contexts if large. Usually not ignored.
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+# .DS_Store
+# Thumbs.db
