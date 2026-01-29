@@ -1,0 +1,3 @@
+SECRET_KEY=django-insecure-ezr7)vtoc*l6if!udddm2wot6#5-a%y_xgvit7df(r2!h3s+7v
+DEBUG = True
+ALLOWED_HOST = 
