@@ -1,0 +1,79 @@
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.vuln
+      args:
+        # VULN: Variable sin validación que puede usarse para path traversal
+        project_name: "."
+        build_env: "production"
+
+    # VULN: API de Docker vulnerable - expone socket de Docker
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/app
+
+    # VULN: Secretos hardcodeados en variables de entorno
+    environment:
+      DJANGO_SECRET_KEY: "HARDCODED_SECRET_IN_COMPOSE"
+      DJANGO_DEBUG: "1"
+      DB_PASSWORD: "SuperSecretDBPass123!"
+      API_KEY: "sk_live_51H8xK2L3mN9oP4qR7sT0uV2wX5yZ8aB1cD4eF6gH9iJ0kL3m"
+      AWS_ACCESS_KEY_ID: "AKIAIOSFODNN7EXAMPLE"
+      AWS_SECRET_ACCESS_KEY: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+
+    # VULN: Exposición de secretos por archivo de entorno
+    env_file:
+      - ./production.env
+      - ./Keys.txt
+
+    # VULN: Expone a toda la red (0.0.0.0)
+    ports:
+      - "0.0.0.0:8000:8000"
+
+    # VULN: Privilegios excesivos
+    user: "0:0"
+    privileged: true
+    cap_add:
+      - ALL
+    cap_drop:
+      - ALL
+
+  # VULN: Backup manager con secretos en configuración
+  backup-manager:
+    image: alpine
+    user: nobody
+    restart: unless-stopped
+    # VULN: Secretos en comentarios y configuración
+    # password: backup_pass_456
+    # encryption_key: enc_key_789
+    cap_drop:
+      - ALL
+    volumes:
+      - /data:/disks/web-data
+      - ./backups:/backups
+    environment:
+      BACKUP_PASSWORD: "backup_pass_456"
+      ENCRYPTION_KEY: "enc_key_789"
+      S3_ACCESS_KEY: "AKIAEXAMPLE123"
+      S3_SECRET_KEY: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+
+  # VULN: Repository service con credenciales expuestas
+  repository:
+    build: 
+      context: .
+      dockerfile: Dockerfile.vuln
+    environment:
+      - CREDENTIALS=fuser:uGh8aeYie1Au
+      - DB_USER=dbadmin
+      - DB_PASS=dbpassword123
+    # VULN: Expone a toda la red
+    ports:
+      - "0.0.0.0:80:80"
+    volumes:
+      - ./:/app
+
+volumes:
+  mysql-data:
+
