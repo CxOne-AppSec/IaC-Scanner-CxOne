@@ -45,9 +45,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar aplicación
 COPY . .
 
-# [NOTA] Seguridad: Aunque se limpiaron secretos, el contenedor aún corre como root. Se recomienda agregar instrucción USER.
+# [CAMBIO] Usuario: Se crea y utiliza un usuario no privilegiado para evitar correr como root.
 # CONFIGURACIÓN VULNERABLE:
 # # VULN: Ejecutar como root
+RUN adduser -D appuser && chown -R appuser /app
+USER appuser
 EXPOSE 8000
 
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
